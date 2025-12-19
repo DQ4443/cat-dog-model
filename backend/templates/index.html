@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cat or Dog Classifier</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            text-align: center;
+        }
+        video, canvas {
+            max-width: 100%;
+            border-radius: 8px;
+        }
+        button {
+            font-size: 16px;
+            padding: 12px 24px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+        .label { font-size: 24px; font-weight: bold; }
+        .score { color: #666; }
+    </style>
+</head>
+<body>
+    <h1>Cat or Dog?</h1>
+
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas" style="display: none;"></canvas>
+
+    <div>
+        <button id="capture">Capture & Classify</button>
+    </div>
+
+    <div id="result" style="display: none;">
+        <div class="label" id="label"></div>
+        <div class="score" id="score"></div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureBtn = document.getElementById('capture');
+        const resultDiv = document.getElementById('result');
+        const labelDiv = document.getElementById('label');
+        const scoreDiv = document.getElementById('score');
+
+        // Start webcam
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => { alert('Could not access webcam: ' + err.message); });
+
+        captureBtn.addEventListener('click', async () => {
+            // Capture frame from video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+            captureBtn.disabled = true;
+            captureBtn.textContent = 'Classifying...';
+
+            try {
+                const response = await fetch('/classify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: imageData })
+                });
+
+                const data = await response.json();
+
+                labelDiv.textContent = data.label.toUpperCase();
+                scoreDiv.textContent = `Confidence: ${(data.score * 100).toFixed(1)}%`;
+                resultDiv.style.display = 'block';
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+
+            captureBtn.disabled = false;
+            captureBtn.textContent = 'Capture & Classify';
+        });
+    </script>
+</body>
+</html>
